@@ -35,14 +35,10 @@ export const RecorderView = () => {
   };
 
   return (
-    <main className="flex-1 w-full max-w-3xl mx-auto px-5 md:px-8 py-10 md:py-16 flex flex-col gap-8">
-      <header className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 shadow-[0_10px_30px_-10px_rgba(168,85,247,0.8)]" />
-          <span className="font-semibold tracking-tight">VoiceScribe</span>
-        </div>
+    <main className="flex-1 w-full max-w-3xl mx-auto px-5 md:px-8 py-8 md:py-12 flex flex-col gap-8">
+      <div className="flex justify-end">
         <StatusBadge status={recorder.status} />
-      </header>
+      </div>
 
       <section className="flex flex-col items-center gap-6 text-center">
         <TitleField value={title} onChange={setTitle} />

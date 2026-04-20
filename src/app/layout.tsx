@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { NavBar } from "@/components/NavBar";
 import "./globals.css";
 
 const inter = Inter({
@@ -8,9 +9,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "VoiceScribe — запись и транскрибация уроков",
+  title: "VoiceScribe — запись, транскрибация и экспорт уроков",
   description:
-    "Записывайте голос, получайте автоматический транскрипт в реальном времени и экспортируйте урок в PDF одним кликом.",
+    "Записывайте аудио или видео, получайте автоматический транскрипт, AI-конспект и экспорт в MP3, MP4 и PDF.",
 };
 
 export default function RootLayout({
@@ -18,7 +19,10 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ru" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <NavBar />
+        {children}
+      </body>
     </html>
   );
 }
