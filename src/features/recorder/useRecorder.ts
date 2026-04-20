@@ -45,6 +45,7 @@ export const useRecorder = (lang: string) => {
     segments: transcriber.segments,
     interim: transcriber.interim,
     audioUrl: audio.audioUrl,
+    audioBlob: audio.audioBlob,
     error: audio.error ?? transcriber.error,
     plainText,
     start,

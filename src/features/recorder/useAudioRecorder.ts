@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 export const useAudioRecorder = () => {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [error, setError] = useState<string | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -18,10 +19,9 @@ export const useAudioRecorder = () => {
 
   const start = useCallback(async () => {
     setError(null);
-    if (audioUrl) {
-      URL.revokeObjectURL(audioUrl);
-      setAudioUrl(null);
-    }
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    setAudioUrl(null);
+    setAudioBlob(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
@@ -32,6 +32,7 @@ export const useAudioRecorder = () => {
       };
       recorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType });
+        setAudioBlob(blob);
         setAudioUrl(URL.createObjectURL(blob));
         stopStream();
       };
@@ -54,8 +55,9 @@ export const useAudioRecorder = () => {
   const reset = useCallback(() => {
     if (audioUrl) URL.revokeObjectURL(audioUrl);
     setAudioUrl(null);
+    setAudioBlob(null);
     setError(null);
   }, [audioUrl]);
 
-  return { audioUrl, error, start, stop, reset };
+  return { audioUrl, audioBlob, error, start, stop, reset };
 };
