@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { PolishedLesson } from "@/features/ai/types";
+import { getProvider } from "./provider";
 
 export const runtime = "edge";
 
@@ -30,10 +31,10 @@ const extractJson = (raw: string): PolishedLesson => {
 };
 
 export async function POST(request: Request) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
+  const provider = getProvider();
+  if (!provider) {
     return NextResponse.json(
-      { error: "OPENAI_API_KEY не настроен на сервере" },
+      { error: "AI-ключ не настроен. Добавьте XAI_API_KEY или OPENAI_API_KEY в переменные окружения." },
       { status: 500 },
     );
   }
@@ -43,14 +44,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Пустой транскрипт" }, { status: 400 });
   }
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const response = await fetch(provider.url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${provider.apiKey}`,
     },
     body: JSON.stringify({
-      model: "gpt-4o-mini",
+      model: provider.model,
       temperature: 0.2,
       response_format: { type: "json_object" },
       messages: [
@@ -68,9 +69,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: text.slice(0, 500) }, { status: response.status });
   }
 
-  const data = (await response.json()) as {
-    choices: Array<{ message: { content: string } }>;
-  };
+  const data = (await response.json()) as { choices: Array<{ message: { content: string } }> };
   const lesson = extractJson(data.choices[0]?.message?.content ?? "");
   return NextResponse.json(lesson);
 }

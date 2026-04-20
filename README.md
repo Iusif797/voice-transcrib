@@ -17,9 +17,14 @@ Next.js 16 · React 19 · TypeScript · Tailwind CSS 4 · jsPDF · @breezystack/
 
 ## Переменные окружения
 
-| Переменная | Назначение | Обязательна |
+Один из ключей обязателен — провайдер выбирается автоматически:
+
+| Переменная | Провайдер | Где получить |
 | --- | --- | --- |
-| `OPENAI_API_KEY` | Ключ OpenAI для AI-редактуры | да, иначе AI-кнопки вернут ошибку |
+| `XAI_API_KEY` | xAI Grok | [console.x.ai](https://console.x.ai) |
+| `OPENAI_API_KEY` | OpenAI | [platform.openai.com](https://platform.openai.com/api-keys) |
+| `AI_MODEL` *(опц.)* | переопределение модели | `grok-2-latest`, `gpt-4o-mini` и т.п. |
+| `AI_PROVIDER` *(опц.)* | форс-выбор | `xai` или `openai` |
 
 ## Локальный запуск
 
