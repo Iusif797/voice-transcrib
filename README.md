@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# VoiceScribe
 
-## Getting Started
+Минималистичное приложение для записи голоса, автоматической транскрибации в реальном времени и экспорта урока в PDF одним кликом.
 
-First, run the development server:
+## Возможности
+
+- Запись с микрофона через `MediaRecorder`
+- Распознавание речи в реальном времени через Web Speech API
+- Таймер длительности и превью аудио
+- Экспорт транскрипта в PDF с поддержкой кириллицы (шрифт Roboto)
+- Копирование текста в буфер обмена
+- Тёмная тема, адаптивная вёрстка, премиальный дизайн
+
+## Технологии
+
+Next.js 16 · React 19 · TypeScript · Tailwind CSS 4 · jsPDF
+
+## Локальный запуск
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Откройте [http://localhost:3000](http://localhost:3000) в Chrome или Edge (Safari и Firefox не поддерживают Web Speech API).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Деплой на Vercel
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Через CLI
 
-## Learn More
+```bash
+npm i -g vercel
+vercel
+```
 
-To learn more about Next.js, take a look at the following resources:
+### Через GitHub
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Запушьте папку `voice-scribe` в репозиторий на GitHub
+2. Откройте [vercel.com/new](https://vercel.com/new)
+3. Импортируйте репозиторий — Vercel сам определит Next.js
+4. Нажмите **Deploy**
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Никакие переменные окружения не требуются — приложение работает полностью на клиенте.
 
-## Deploy on Vercel
+## Ограничения браузеров
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Распознавание речи использует нативный Web Speech API, который на момент публикации поддерживается в Chrome и Edge на десктопе и Android. В Safari и Firefox кнопка записи будет отключена с соответствующим сообщением.
