@@ -21,7 +21,7 @@ export const getProvider = (): ProviderConfig | null => {
     if (!apiKey) return null;
     return {
       url: "https://api.x.ai/v1/chat/completions",
-      model: process.env.AI_MODEL ?? "grok-2-latest",
+      model: process.env.AI_MODEL ?? "grok-4-latest",
       apiKey,
       supportsJsonResponse: true,
     };
