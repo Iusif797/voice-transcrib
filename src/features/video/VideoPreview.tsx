@@ -22,7 +22,7 @@ export const VideoPreview = ({ stream, recordedUrl, recording }: Props) => {
   const showPlayback = !recording && recordedUrl;
 
   return (
-    <div className="relative aspect-video w-full rounded-3xl overflow-hidden glass flex items-center justify-center">
+    <div className="relative w-full rounded-3xl overflow-hidden glass flex items-center justify-center aspect-[3/4] sm:aspect-video min-h-[60vh] sm:min-h-0">
       {showLive && (
         <video
           ref={liveRef}

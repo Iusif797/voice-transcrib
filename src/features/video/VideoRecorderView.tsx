@@ -46,25 +46,29 @@ export const VideoRecorderView = () => {
     : "Скачать видео";
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between gap-4">
         <TitleField value={title} onChange={setTitle} />
         <StatusBadge status={session.status} />
       </div>
 
-      <VideoPreview stream={session.stream} recordedUrl={session.videoUrl} recording={recording} />
+      <div className="grid grid-cols-1 md:grid-cols-[1.6fr_1fr] gap-6 items-start">
+        <VideoPreview stream={session.stream} recordedUrl={session.videoUrl} recording={recording} />
 
-      <div className="flex flex-col items-center gap-4">
-        <div className="text-4xl md:text-5xl font-semibold tabular-nums tracking-tight">
-          {formatDuration(session.elapsedMs)}
+        <div className="flex flex-col gap-5">
+          <div className="glass rounded-3xl p-6 flex flex-col items-center gap-4">
+            <div className="text-4xl md:text-5xl font-semibold tabular-nums tracking-tight">
+              {formatDuration(session.elapsedMs)}
+            </div>
+            <RecordButton status={session.status} onStart={session.start} onStop={session.stop} />
+            {(session.error || lesson.error) && (
+              <p className="text-sm text-red-300/80 text-center">{session.error ?? lesson.error}</p>
+            )}
+          </div>
+
+          <TranscriptPanel segments={session.segments} interim={session.interim} recording={recording} />
         </div>
-        <RecordButton status={session.status} onStart={session.start} onStop={session.stop} />
-        {(session.error || lesson.error) && (
-          <p className="text-sm text-red-300/80 max-w-md text-center">{session.error ?? lesson.error}</p>
-        )}
       </div>
-
-      <TranscriptPanel segments={session.segments} interim={session.interim} recording={recording} />
 
       <ActionBar
         actions={[
