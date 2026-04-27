@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import type { PolishedLesson } from "@/features/ai/types";
+import { sendCompletion } from "./completion";
+import { parseLessonJson } from "./parseLesson";
 import { getProvider } from "./provider";
 
 export const runtime = "edge";
@@ -19,17 +21,6 @@ const SYSTEM_PROMPT = `Ты — редактор образовательных 
   "full": "Полный отредактированный конспект. Markdown: заголовки ##, подзаголовки ###, списки, выделения жирным там, где уместно."
 }`;
 
-const extractJson = (raw: string): PolishedLesson => {
-  const cleaned = raw
-    .replace(/^```json\s*/i, "")
-    .replace(/^```\s*/i, "")
-    .replace(/```\s*$/i, "")
-    .trim();
-  const parsed = JSON.parse(cleaned) as PolishedLesson;
-  if (!parsed.summary || !parsed.full) throw new Error("Некорректный ответ модели");
-  return parsed;
-};
-
 export async function POST(request: Request) {
   const provider = getProvider();
   if (!provider) {
@@ -44,32 +35,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Пустой транскрипт" }, { status: 400 });
   }
 
-  const response = await fetch(provider.url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${provider.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: provider.model,
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: `Название: ${body.title || "Урок"}\n\nРасшифровка:\n${body.transcript}`,
-        },
-      ],
-    }),
-  });
+  const userContent = `Название: ${body.title || "Урок"}\n\nРасшифровка:\n${body.transcript}`;
+  let response = await sendCompletion(provider, SYSTEM_PROMPT, userContent, true);
+  if (!response.ok) {
+    const second = await sendCompletion(provider, SYSTEM_PROMPT, userContent, false);
+    if (second.ok) response = second;
+  }
 
   if (!response.ok) {
     const text = await response.text();
-    return NextResponse.json({ error: text.slice(0, 500) }, { status: response.status });
+    return NextResponse.json({ error: text.slice(0, 800) }, { status: response.status });
   }
 
-  const data = (await response.json()) as { choices: Array<{ message: { content: string } }> };
-  const lesson = extractJson(data.choices[0]?.message?.content ?? "");
-  return NextResponse.json(lesson);
+  const data = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  const raw = data.choices?.[0]?.message?.content ?? "";
+  if (!raw.trim()) {
+    return NextResponse.json({ error: "Пустой ответ модели" }, { status: 502 });
+  }
+
+  try {
+    const lesson: PolishedLesson = parseLessonJson(raw);
+    return NextResponse.json(lesson);
+  } catch {
+    return NextResponse.json({ error: "Не удалось разобрать JSON от модели" }, { status: 502 });
+  }
 }

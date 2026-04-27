@@ -14,6 +14,7 @@ export const encodeMp3 = async (blob: Blob): Promise<Blob> => {
   const { Mp3Encoder } = await import("@breezystack/lamejs");
   const arrayBuffer = await blob.arrayBuffer();
   const audioContext = new AudioContext();
+  if (audioContext.state === "suspended") await audioContext.resume();
   const audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
   await audioContext.close();
 

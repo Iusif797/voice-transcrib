@@ -6,6 +6,7 @@ import type { PolishedLesson } from "@/features/ai/types";
 import { downloadBlob, safeFileName } from "@/features/audio/download";
 import { encodeMp3 } from "@/features/audio/encodeMp3";
 import { exportLessonPdf } from "@/features/pdf/exportLessonPdf";
+import { extensionForMime, summaryFallback } from "./exportHelpers";
 
 interface Params {
   title: string;
@@ -20,14 +21,6 @@ export const useLessonExport = ({ title, transcript, durationMs, audioBlob }: Pa
   const [job, setJob] = useState<Job>("idle");
   const [error, setError] = useState<string | null>(null);
   const lessonRef = useRef<PolishedLesson | null>(null);
-
-  const ensureLesson = useCallback(async (): Promise<PolishedLesson> => {
-    if (lessonRef.current) return lessonRef.current;
-    setJob("polishing");
-    const lesson = await polishLesson(title, transcript);
-    lessonRef.current = lesson;
-    return lesson;
-  }, [title, transcript]);
 
   const run = useCallback(async (next: Job, action: () => Promise<void>) => {
     setError(null);
@@ -44,24 +37,43 @@ export const useLessonExport = ({ title, transcript, durationMs, audioBlob }: Pa
   const downloadPdf = useCallback(
     (variant: "full" | "summary") =>
       run(variant === "summary" ? "pdf-summary" : "pdf-full", async () => {
-        const lesson = await ensureLesson();
+        let pdfTitle = title.trim() || "Урок";
+        let body: string;
+        try {
+          if (!lessonRef.current) {
+            setJob("polishing");
+            lessonRef.current = await polishLesson(title, transcript);
+          }
+          const lesson = lessonRef.current;
+          pdfTitle = (lesson.title || title).trim() || pdfTitle;
+          body = variant === "summary" ? lesson.summary : lesson.full;
+        } catch {
+          lessonRef.current = null;
+          const raw = transcript.trim();
+          if (!raw) throw new Error("Нет текста для PDF");
+          body = variant === "summary" ? summaryFallback(raw) : raw;
+        }
         await exportLessonPdf({
-          title: lesson.title || title,
-          body: variant === "summary" ? lesson.summary : lesson.full,
+          title: pdfTitle,
+          body,
           durationMs,
           createdAt: new Date(),
           variant,
         });
       }),
-    [ensureLesson, durationMs, run, title],
+    [durationMs, run, title, transcript],
   );
 
   const downloadMp3 = useCallback(
     () =>
       run("mp3", async () => {
         if (!audioBlob) throw new Error("Сначала сделайте запись");
-        const mp3 = await encodeMp3(audioBlob);
-        downloadBlob(mp3, `${safeFileName(title)}.mp3`);
+        try {
+          const mp3 = await encodeMp3(audioBlob);
+          downloadBlob(mp3, `${safeFileName(title)}.mp3`);
+        } catch {
+          downloadBlob(audioBlob, `${safeFileName(title)}.${extensionForMime(audioBlob.type || "")}`);
+        }
       }),
     [audioBlob, run, title],
   );

@@ -63,9 +63,11 @@ export const VideoRecorderView = () => {
             {formatDuration(session.elapsedMs)}
           </div>
           <RecordButton status={session.status} onStart={session.start} onStop={session.stop} />
-          {(session.error || lesson.error) && (
-            <p className="text-sm text-red-300/80 text-center">{session.error ?? lesson.error}</p>
-          )}
+            {(session.error || lesson.error) && (
+              <p className="text-sm text-red-300/80 text-center">
+                {[session.error, lesson.error].filter(Boolean).join(" · ")}
+              </p>
+            )}
         </div>
       </div>
 

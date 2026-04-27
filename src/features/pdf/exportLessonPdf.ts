@@ -1,4 +1,4 @@
-import { safeFileName } from "@/features/audio/download";
+import { downloadBlob, safeFileName } from "@/features/audio/download";
 import { formatDuration } from "@/features/recorder/format";
 import { parseMarkdown } from "./markdown";
 import { createPdfDoc } from "./pdfDoc";
@@ -36,5 +36,7 @@ export const exportLessonPdf = async ({ title, body, durationMs, createdAt, vari
   renderBlocks(doc, blocks, layout, cursor);
 
   const suffix = variant === "summary" ? "кратко" : "полный";
-  doc.save(`${safeFileName(title)}_${suffix}.pdf`);
+  const name = `${safeFileName(title)}_${suffix}.pdf`;
+  const blob = doc.output("blob");
+  downloadBlob(blob, name);
 };

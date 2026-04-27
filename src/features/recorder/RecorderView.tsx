@@ -47,7 +47,9 @@ export const RecorderView = () => {
         </div>
         <RecordButton status={recorder.status} onStart={recorder.start} onStop={recorder.stop} />
         {(recorder.error || exporter.error) && (
-          <p className="text-sm text-red-300/80 max-w-md">{recorder.error ?? exporter.error}</p>
+          <p className="text-sm text-red-300/80 max-w-md">
+            {[recorder.error, exporter.error].filter(Boolean).join(" · ")}
+          </p>
         )}
         {recorder.status === "unsupported" && (
           <p className="text-sm text-amber-300/80 max-w-md">
