@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useLessonSaver } from "@/features/lessons/useLessonSaver";
 import { ActionBar } from "./ActionBar";
 import { RecordButton } from "./RecordButton";
 import { StatusBadge } from "./StatusBadge";
 import { TitleField } from "./TitleField";
 import { TranscriptPanel } from "./TranscriptPanel";
+import { extensionForMime } from "./exportHelpers";
 import { formatDuration } from "./format";
 import { useLessonExport } from "./useLessonExport";
 import { useRecorder } from "./useRecorder";
@@ -21,11 +23,28 @@ export const RecorderView = () => {
     durationMs: recorder.elapsedMs,
     audioBlob: recorder.audioBlob,
   });
+  const saver = useLessonSaver();
 
   const recording = recorder.status === "recording";
   const hasText = recorder.segments.length > 0;
   const hasAudio = Boolean(recorder.audioBlob);
   const busy = exporter.job !== "idle";
+
+  const onSave = () =>
+    saver.save({
+      title,
+      kind: "audio",
+      durationMs: recorder.elapsedMs,
+      transcript: recorder.plainText,
+      segments: recorder.segments,
+      mediaBlob: recorder.audioBlob,
+      mediaExtension: recorder.audioBlob ? extensionForMime(recorder.audioBlob.type || "") : null,
+    });
+
+  const saveLabel =
+    saver.status === "saving" ? "Сохраняем…" :
+    saver.status === "saved" ? "Сохранено ✓" :
+    "Сохранить урок";
 
   const labelFor = (variant: "full" | "summary"): string => {
     if (exporter.job === "polishing") return "ИИ редактирует…";
@@ -46,9 +65,9 @@ export const RecorderView = () => {
           {formatDuration(recorder.elapsedMs)}
         </div>
         <RecordButton status={recorder.status} onStart={recorder.start} onStop={recorder.stop} />
-        {(recorder.error || exporter.error) && (
+        {(recorder.error || exporter.error || saver.error) && (
           <p className="text-sm text-red-300/80 max-w-md">
-            {[recorder.error, exporter.error].filter(Boolean).join(" · ")}
+            {[recorder.error, exporter.error, saver.error].filter(Boolean).join(" · ")}
           </p>
         )}
         {recorder.status === "unsupported" && (
@@ -65,9 +84,16 @@ export const RecorderView = () => {
           { label: labelFor("full"), onClick: () => exporter.downloadPdf("full"), disabled: !hasText || busy, tone: "primary" },
           { label: labelFor("summary"), onClick: () => exporter.downloadPdf("summary"), disabled: !hasText || busy, tone: "primary" },
           { label: exporter.job === "mp3" ? "Кодируем MP3…" : "Скачать MP3", onClick: exporter.downloadMp3, disabled: !hasAudio || busy },
-          { label: "Очистить", onClick: () => { recorder.clear(); exporter.clearLesson(); }, disabled: recording || (!hasText && !hasAudio), tone: "danger" },
+          { label: saveLabel, onClick: onSave, disabled: recording || saver.status === "saving" || (!hasText && !hasAudio), tone: "primary" },
+          { label: "Очистить", onClick: () => { recorder.clear(); exporter.clearLesson(); saver.resetStatus(); }, disabled: recording || (!hasText && !hasAudio), tone: "danger" },
         ]}
       />
+
+      {saver.status === "saved" && (
+        <p className="text-sm text-emerald-300/90 text-center">
+          Урок сохранён. Открыть список можно во вкладке «Уроки».
+        </p>
+      )}
 
       {recorder.audioUrl && <audio controls src={recorder.audioUrl} className="w-full mt-2 rounded-xl" />}
     </main>

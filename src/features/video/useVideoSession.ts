@@ -48,6 +48,7 @@ export const useVideoSession = (lang: string) => {
     videoBlob: video.blob,
     videoUrl: video.url,
     extension: video.extension,
+    finalizing: video.finalizing,
     error: video.error ?? transcriber.error,
     plainText,
     start,

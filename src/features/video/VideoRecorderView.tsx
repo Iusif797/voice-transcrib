@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useLessonSaver } from "@/features/lessons/useLessonSaver";
 import { ActionBar } from "@/features/recorder/ActionBar";
 import { RecordButton } from "@/features/recorder/RecordButton";
 import { StatusBadge } from "@/features/recorder/StatusBadge";
@@ -28,11 +29,28 @@ export const VideoRecorderView = () => {
     blob: session.videoBlob,
     extension: session.extension,
   });
+  const saver = useLessonSaver();
 
   const recording = session.status === "recording";
   const hasText = session.segments.length > 0;
   const hasVideo = Boolean(session.videoBlob);
   const busy = lesson.job !== "idle";
+
+  const onSave = () =>
+    saver.save({
+      title,
+      kind: "video",
+      durationMs: session.elapsedMs,
+      transcript: session.plainText,
+      segments: session.segments,
+      mediaBlob: session.videoBlob,
+      mediaExtension: session.extension,
+    });
+
+  const saveLabel =
+    saver.status === "saving" ? "Сохраняем…" :
+    saver.status === "saved" ? "Сохранено ✓" :
+    "Сохранить урок";
 
   const pdfLabel = (variant: "full" | "summary"): string => {
     if (lesson.job === "polishing") return "ИИ редактирует…";
@@ -41,9 +59,13 @@ export const VideoRecorderView = () => {
     return variant === "summary" ? "PDF · кратко (2 стр)" : "PDF · полная версия";
   };
 
-  const videoLabel = hasVideo
-    ? `Скачать ${session.extension?.toUpperCase() ?? "видео"}`
-    : "Скачать видео";
+  const videoLabel = videoExport.busy
+    ? "Готовим файл…"
+    : session.finalizing
+      ? "Финализируем видео…"
+      : hasVideo
+        ? `Скачать ${session.extension?.toUpperCase() ?? "видео"}`
+        : "Скачать видео";
 
   return (
     <div className="flex flex-col gap-6">
@@ -63,9 +85,9 @@ export const VideoRecorderView = () => {
             {formatDuration(session.elapsedMs)}
           </div>
           <RecordButton status={session.status} onStart={session.start} onStop={session.stop} />
-            {(session.error || lesson.error) && (
+            {(session.error || lesson.error || saver.error) && (
               <p className="text-sm text-red-300/80 text-center">
-                {[session.error, lesson.error].filter(Boolean).join(" · ")}
+                {[session.error, lesson.error, saver.error].filter(Boolean).join(" · ")}
               </p>
             )}
         </div>
@@ -75,10 +97,17 @@ export const VideoRecorderView = () => {
         actions={[
           { label: pdfLabel("full"), onClick: () => lesson.downloadPdf("full"), disabled: !hasText || busy, tone: "primary" },
           { label: pdfLabel("summary"), onClick: () => lesson.downloadPdf("summary"), disabled: !hasText || busy, tone: "primary" },
-          { label: videoLabel, onClick: videoExport.downloadVideo, disabled: !hasVideo || busy },
-          { label: "Очистить", onClick: () => { session.clear(); lesson.clearLesson(); }, disabled: recording || (!hasText && !hasVideo), tone: "danger" },
+          { label: videoLabel, onClick: videoExport.downloadVideo, disabled: !hasVideo || videoExport.busy || busy },
+          { label: saveLabel, onClick: onSave, disabled: recording || saver.status === "saving" || (!hasText && !hasVideo), tone: "primary" },
+          { label: "Очистить", onClick: () => { session.clear(); lesson.clearLesson(); saver.resetStatus(); }, disabled: recording || (!hasText && !hasVideo), tone: "danger" },
         ]}
       />
+
+      {saver.status === "saved" && (
+        <p className="text-sm text-emerald-300/90 text-center">
+          Урок сохранён. Открыть список можно во вкладке «Уроки».
+        </p>
+      )}
     </div>
   );
 };

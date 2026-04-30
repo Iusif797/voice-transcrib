@@ -9,9 +9,17 @@ interface VideoState {
   url: string | null;
   extension: "mp4" | "webm" | null;
   error: string | null;
+  finalizing: boolean;
 }
 
-const INITIAL: VideoState = { stream: null, blob: null, url: null, extension: null, error: null };
+const INITIAL: VideoState = {
+  stream: null,
+  blob: null,
+  url: null,
+  extension: null,
+  error: null,
+  finalizing: false,
+};
 
 export const useVideoRecorder = () => {
   const [state, setState] = useState<VideoState>(INITIAL);
@@ -44,22 +52,43 @@ export const useVideoRecorder = () => {
       const recorder = new MediaRecorder(stream, { mimeType: format.mimeType });
       chunksRef.current = [];
       recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) chunksRef.current.push(event.data);
+        if (event.data && event.data.size > 0) chunksRef.current.push(event.data);
       };
       recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: format.mimeType });
+        const chunks = chunksRef.current;
+        const blob = new Blob(chunks, { type: format.mimeType });
+        chunksRef.current = [];
         stopTracks(stream);
+        if (blob.size === 0) {
+          setState({
+            ...INITIAL,
+            extension: format.extension,
+            error: "Запись пуста — попробуйте ещё раз",
+          });
+          return;
+        }
         setState({
           stream: null,
           blob,
           url: URL.createObjectURL(blob),
           extension: format.extension,
           error: null,
+          finalizing: false,
         });
+      };
+      recorder.onerror = () => {
+        setState((prev) => ({ ...prev, error: "Сбой записи видео", finalizing: false }));
       };
       recorder.start(1000);
       recorderRef.current = recorder;
-      setState({ stream, blob: null, url: null, extension: format.extension, error: null });
+      setState({
+        stream,
+        blob: null,
+        url: null,
+        extension: format.extension,
+        error: null,
+        finalizing: false,
+      });
       return true;
     } catch {
       setState({ ...INITIAL, error: "Нет доступа к камере или микрофону" });
@@ -69,12 +98,23 @@ export const useVideoRecorder = () => {
 
   const stop = useCallback(() => {
     const recorder = recorderRef.current;
-    if (recorder && recorder.state !== "inactive") recorder.stop();
+    if (!recorder || recorder.state === "inactive") {
+      recorderRef.current = null;
+      return;
+    }
+    setState((prev) => ({ ...prev, finalizing: true }));
+    try {
+      recorder.requestData();
+    } catch {
+      /* not all browsers support requestData on every state */
+    }
+    recorder.stop();
     recorderRef.current = null;
   }, []);
 
   const reset = useCallback(() => {
     if (state.url) URL.revokeObjectURL(state.url);
+    chunksRef.current = [];
     setState(INITIAL);
   }, [state.url]);
 

@@ -7,6 +7,7 @@ import { Logo } from "./Logo";
 const LINKS = [
   { href: "/", label: "Аудио" },
   { href: "/video", label: "Видео" },
+  { href: "/lessons", label: "Уроки" },
 ];
 
 export const NavBar = () => {
