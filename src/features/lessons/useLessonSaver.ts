@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import type { TranscriptSegment } from "@/features/recorder/types";
-import { generateLessonId, saveLesson } from "./lessonStore";
+import { saveLesson, type SavePhase } from "./lessonStore";
 import type { LessonKind } from "./types";
 
 interface SaveInput {
@@ -13,39 +13,43 @@ interface SaveInput {
   segments: TranscriptSegment[];
   mediaBlob: Blob | null;
   mediaExtension: string | null;
+  pdfFullBlob: Blob | null;
+  pdfSummaryBlob: Blob | null;
 }
 
-type SaveStatus = "idle" | "saving" | "saved" | "error";
+export type SaveStatus =
+  | "idle"
+  | "preparing"
+  | "uploading-media"
+  | "uploading-pdf"
+  | "saving"
+  | "saved"
+  | "error";
 
 export const useLessonSaver = () => {
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [error, setError] = useState<string | null>(null);
 
-  const save = useCallback(async ({ title, kind, durationMs, transcript, segments, mediaBlob, mediaExtension }: SaveInput) => {
-    if (!transcript.trim() && !mediaBlob) {
+  const save = useCallback(async (input: SaveInput) => {
+    if (!input.transcript.trim() && !input.mediaBlob && !input.pdfFullBlob && !input.pdfSummaryBlob) {
       setError("Нечего сохранять");
       setStatus("error");
       return null;
     }
-    setStatus("saving");
     setError(null);
+    const initialPhase: SaveStatus = input.mediaBlob
+      ? "uploading-media"
+      : input.pdfFullBlob || input.pdfSummaryBlob
+        ? "uploading-pdf"
+        : "saving";
+    setStatus(initialPhase);
     try {
-      const id = generateLessonId();
-      await saveLesson({
-        id,
-        title: title.trim() || "Без названия",
-        kind,
-        createdAt: Date.now(),
-        durationMs,
-        transcript,
-        segments,
-        mediaMime: mediaBlob?.type ?? null,
-        mediaExtension,
-        mediaSize: mediaBlob?.size ?? 0,
-        mediaBlob,
+      const id = await saveLesson({
+        ...input,
+        onProgress: (phase: SavePhase) => setStatus(phase),
       });
       setStatus("saved");
-      window.setTimeout(() => setStatus((s) => (s === "saved" ? "idle" : s)), 2200);
+      window.setTimeout(() => setStatus((s) => (s === "saved" ? "idle" : s)), 2400);
       return id;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось сохранить урок");
@@ -54,10 +58,15 @@ export const useLessonSaver = () => {
     }
   }, []);
 
+  const setPreparing = useCallback(() => {
+    setError(null);
+    setStatus("preparing");
+  }, []);
+
   const resetStatus = useCallback(() => {
     setStatus("idle");
     setError(null);
   }, []);
 
-  return { status, error, save, resetStatus };
+  return { status, error, save, resetStatus, setPreparing };
 };

@@ -1,5 +1,19 @@
 export type LessonKind = "audio" | "video";
 
+export interface LessonSegment {
+  id: string;
+  text: string;
+  timestamp: number;
+}
+
+export interface LessonAttachment {
+  path: string;
+  url: string;
+  size: number;
+  extension: string | null;
+  mime: string | null;
+}
+
 export interface LessonRecord {
   id: string;
   title: string;
@@ -7,11 +21,10 @@ export interface LessonRecord {
   createdAt: number;
   durationMs: number;
   transcript: string;
-  segments: Array<{ id: string; text: string; timestamp: number }>;
-  mediaMime: string | null;
-  mediaExtension: string | null;
-  mediaSize: number;
-  mediaBlob: Blob | null;
+  segments: LessonSegment[];
+  media: LessonAttachment | null;
+  pdfFull: LessonAttachment | null;
+  pdfSummary: LessonAttachment | null;
 }
 
 export interface LessonSummary {
@@ -21,6 +34,7 @@ export interface LessonSummary {
   createdAt: number;
   durationMs: number;
   transcriptLength: number;
-  mediaSize: number;
-  mediaExtension: string | null;
+  media: LessonAttachment | null;
+  pdfFull: LessonAttachment | null;
+  pdfSummary: LessonAttachment | null;
 }

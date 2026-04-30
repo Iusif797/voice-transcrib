@@ -24,14 +24,26 @@ export const RecorderView = () => {
     audioBlob: recorder.audioBlob,
   });
   const saver = useLessonSaver();
+  const [pdfNotice, setPdfNotice] = useState<string | null>(null);
 
   const recording = recorder.status === "recording";
   const hasText = recorder.segments.length > 0;
   const hasAudio = Boolean(recorder.audioBlob);
-  const busy = exporter.job !== "idle";
+  const exporterBusy = exporter.job !== "idle";
 
-  const onSave = () =>
-    saver.save({
+  const onSave = async () => {
+    setPdfNotice(null);
+    saver.setPreparing();
+    let pdfFullBlob: Blob | null = null;
+    let pdfSummaryBlob: Blob | null = null;
+    if (hasText) {
+      pdfFullBlob = await exporter.ensurePdf("full");
+      pdfSummaryBlob = await exporter.ensurePdf("summary");
+      if (!pdfFullBlob || !pdfSummaryBlob) {
+        setPdfNotice("PDF не удалось сгенерировать (проверьте AI-ключ). Урок сохранится с медиа и транскриптом.");
+      }
+    }
+    await saver.save({
       title,
       kind: "audio",
       durationMs: recorder.elapsedMs,
@@ -39,12 +51,23 @@ export const RecorderView = () => {
       segments: recorder.segments,
       mediaBlob: recorder.audioBlob,
       mediaExtension: recorder.audioBlob ? extensionForMime(recorder.audioBlob.type || "") : null,
+      pdfFullBlob,
+      pdfSummaryBlob,
     });
+  };
 
-  const saveLabel =
-    saver.status === "saving" ? "Сохраняем…" :
-    saver.status === "saved" ? "Сохранено ✓" :
-    "Сохранить урок";
+  const saveLabel = (() => {
+    switch (saver.status) {
+      case "preparing": return "Готовим PDF…";
+      case "uploading-media": return "Загружаем аудио…";
+      case "uploading-pdf": return "Загружаем PDF…";
+      case "saving": return "Сохраняем…";
+      case "saved": return "Сохранено ✓";
+      default: return "Сохранить урок";
+    }
+  })();
+
+  const saveBusy = saver.status !== "idle" && saver.status !== "saved" && saver.status !== "error";
 
   const labelFor = (variant: "full" | "summary"): string => {
     if (exporter.job === "polishing") return "ИИ редактирует…";
@@ -81,11 +104,11 @@ export const RecorderView = () => {
 
       <ActionBar
         actions={[
-          { label: labelFor("full"), onClick: () => exporter.downloadPdf("full"), disabled: !hasText || busy, tone: "primary" },
-          { label: labelFor("summary"), onClick: () => exporter.downloadPdf("summary"), disabled: !hasText || busy, tone: "primary" },
-          { label: exporter.job === "mp3" ? "Кодируем MP3…" : "Скачать MP3", onClick: exporter.downloadMp3, disabled: !hasAudio || busy },
-          { label: saveLabel, onClick: onSave, disabled: recording || saver.status === "saving" || (!hasText && !hasAudio), tone: "primary" },
-          { label: "Очистить", onClick: () => { recorder.clear(); exporter.clearLesson(); saver.resetStatus(); }, disabled: recording || (!hasText && !hasAudio), tone: "danger" },
+          { label: labelFor("full"), onClick: () => exporter.downloadPdf("full"), disabled: !hasText || exporterBusy, tone: "primary" },
+          { label: labelFor("summary"), onClick: () => exporter.downloadPdf("summary"), disabled: !hasText || exporterBusy, tone: "primary" },
+          { label: exporter.job === "mp3" ? "Кодируем MP3…" : "Скачать MP3", onClick: exporter.downloadMp3, disabled: !hasAudio || exporterBusy },
+          { label: saveLabel, onClick: onSave, disabled: recording || saveBusy || (!hasText && !hasAudio), tone: "primary" },
+          { label: "Очистить", onClick: () => { recorder.clear(); exporter.clearLesson(); saver.resetStatus(); setPdfNotice(null); }, disabled: recording || (!hasText && !hasAudio), tone: "danger" },
         ]}
       />
 
@@ -93,6 +116,9 @@ export const RecorderView = () => {
         <p className="text-sm text-emerald-300/90 text-center">
           Урок сохранён. Открыть список можно во вкладке «Уроки».
         </p>
+      )}
+      {pdfNotice && (
+        <p className="text-xs text-amber-300/80 text-center">{pdfNotice}</p>
       )}
 
       {recorder.audioUrl && <audio controls src={recorder.audioUrl} className="w-full mt-2 rounded-xl" />}

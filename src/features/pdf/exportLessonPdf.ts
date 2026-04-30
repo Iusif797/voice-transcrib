@@ -12,7 +12,13 @@ interface Params {
   variant: "full" | "summary";
 }
 
-export const exportLessonPdf = async ({ title, body, durationMs, createdAt, variant }: Params): Promise<void> => {
+export const buildLessonPdfBlob = async ({
+  title,
+  body,
+  durationMs,
+  createdAt,
+  variant,
+}: Params): Promise<Blob> => {
   const doc = await createPdfDoc();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -35,8 +41,16 @@ export const exportLessonPdf = async ({ title, body, durationMs, createdAt, vari
   const cursor = { y: margin + 70 };
   renderBlocks(doc, blocks, layout, cursor);
 
+  return doc.output("blob");
+};
+
+export const pdfFileName = (title: string, variant: "full" | "summary"): string => {
   const suffix = variant === "summary" ? "кратко" : "полный";
-  const name = `${safeFileName(title)}_${suffix}.pdf`;
-  const blob = doc.output("blob");
-  downloadBlob(blob, name);
+  return `${safeFileName(title)}_${suffix}.pdf`;
+};
+
+export const exportLessonPdf = async (params: Params): Promise<Blob> => {
+  const blob = await buildLessonPdfBlob(params);
+  downloadBlob(blob, pdfFileName(params.title, params.variant));
+  return blob;
 };

@@ -30,14 +30,26 @@ export const VideoRecorderView = () => {
     extension: session.extension,
   });
   const saver = useLessonSaver();
+  const [pdfNotice, setPdfNotice] = useState<string | null>(null);
 
   const recording = session.status === "recording";
   const hasText = session.segments.length > 0;
   const hasVideo = Boolean(session.videoBlob);
-  const busy = lesson.job !== "idle";
+  const exporterBusy = lesson.job !== "idle";
 
-  const onSave = () =>
-    saver.save({
+  const onSave = async () => {
+    setPdfNotice(null);
+    saver.setPreparing();
+    let pdfFullBlob: Blob | null = null;
+    let pdfSummaryBlob: Blob | null = null;
+    if (hasText) {
+      pdfFullBlob = await lesson.ensurePdf("full");
+      pdfSummaryBlob = await lesson.ensurePdf("summary");
+      if (!pdfFullBlob || !pdfSummaryBlob) {
+        setPdfNotice("PDF не удалось сгенерировать (проверьте AI-ключ). Урок сохранится с видео и транскриптом.");
+      }
+    }
+    await saver.save({
       title,
       kind: "video",
       durationMs: session.elapsedMs,
@@ -45,12 +57,23 @@ export const VideoRecorderView = () => {
       segments: session.segments,
       mediaBlob: session.videoBlob,
       mediaExtension: session.extension,
+      pdfFullBlob,
+      pdfSummaryBlob,
     });
+  };
 
-  const saveLabel =
-    saver.status === "saving" ? "Сохраняем…" :
-    saver.status === "saved" ? "Сохранено ✓" :
-    "Сохранить урок";
+  const saveLabel = (() => {
+    switch (saver.status) {
+      case "preparing": return "Готовим PDF…";
+      case "uploading-media": return "Загружаем видео…";
+      case "uploading-pdf": return "Загружаем PDF…";
+      case "saving": return "Сохраняем…";
+      case "saved": return "Сохранено ✓";
+      default: return "Сохранить урок";
+    }
+  })();
+
+  const saveBusy = saver.status !== "idle" && saver.status !== "saved" && saver.status !== "error";
 
   const pdfLabel = (variant: "full" | "summary"): string => {
     if (lesson.job === "polishing") return "ИИ редактирует…";
@@ -95,11 +118,11 @@ export const VideoRecorderView = () => {
 
       <ActionBar
         actions={[
-          { label: pdfLabel("full"), onClick: () => lesson.downloadPdf("full"), disabled: !hasText || busy, tone: "primary" },
-          { label: pdfLabel("summary"), onClick: () => lesson.downloadPdf("summary"), disabled: !hasText || busy, tone: "primary" },
-          { label: videoLabel, onClick: videoExport.downloadVideo, disabled: !hasVideo || videoExport.busy || busy },
-          { label: saveLabel, onClick: onSave, disabled: recording || saver.status === "saving" || (!hasText && !hasVideo), tone: "primary" },
-          { label: "Очистить", onClick: () => { session.clear(); lesson.clearLesson(); saver.resetStatus(); }, disabled: recording || (!hasText && !hasVideo), tone: "danger" },
+          { label: pdfLabel("full"), onClick: () => lesson.downloadPdf("full"), disabled: !hasText || exporterBusy, tone: "primary" },
+          { label: pdfLabel("summary"), onClick: () => lesson.downloadPdf("summary"), disabled: !hasText || exporterBusy, tone: "primary" },
+          { label: videoLabel, onClick: videoExport.downloadVideo, disabled: !hasVideo || videoExport.busy || exporterBusy },
+          { label: saveLabel, onClick: onSave, disabled: recording || saveBusy || (!hasText && !hasVideo), tone: "primary" },
+          { label: "Очистить", onClick: () => { session.clear(); lesson.clearLesson(); saver.resetStatus(); setPdfNotice(null); }, disabled: recording || (!hasText && !hasVideo), tone: "danger" },
         ]}
       />
 
@@ -107,6 +130,9 @@ export const VideoRecorderView = () => {
         <p className="text-sm text-emerald-300/90 text-center">
           Урок сохранён. Открыть список можно во вкладке «Уроки».
         </p>
+      )}
+      {pdfNotice && (
+        <p className="text-xs text-amber-300/80 text-center">{pdfNotice}</p>
       )}
     </div>
   );
